@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 import "https://github.com/protofire/zeppelin-solidity/blob/master/contracts/ReentrancyGuard.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 
 contract EventManagement is ERC20,ReentrancyGuard {
     struct user {
@@ -28,8 +29,10 @@ contract EventManagement is ERC20,ReentrancyGuard {
         address payable eventOwner;
         uint256 amount;
         uint256 eventID;
+        uint tokenID;
     }
 
+    uint tokenID;
     address payable owner;
     uint256 counter;
     uint256 [] public eventNo;
@@ -37,16 +40,18 @@ contract EventManagement is ERC20,ReentrancyGuard {
     mapping (uint256 => Event) public numEvent;
     mapping (address => uint) public  idToEvent;
     mapping(uint256 => address[]) public registeredAddresses;
+    user[] public Users;
 
     constructor() ERC20 ("Vigor","VIG") {
         owner = payable(msg.sender);
         _mint(owner,100000);
     }
 
-    function registerUser(string memory _name,gender _gender) external {
+    function registerUser(string memory _name,gender _gender) external{
         user memory newUser;
         newUser.name = string(abi.encodePacked(_name));
         newUser.Gender = _gender;
+        Users.push(newUser);
     }
     
 
@@ -61,6 +66,8 @@ contract EventManagement is ERC20,ReentrancyGuard {
         newEvent.eventOwner = payable (msg.sender);
 
         counter++;
+        tokenID++;
+        newEvent.tokenID = tokenID;
         newEvent.eventID = counter;
         eventNo.push(newEvent.eventID);
         addressEvent[msg.sender] = newEvent;
@@ -73,6 +80,7 @@ contract EventManagement is ERC20,ReentrancyGuard {
         if (numEvent[_counter].Type == eventType.unPaid){
             idToEvent[msg.sender] = _counter;  
             registeredAddresses[_counter].push(msg.sender);
+            transferFrom(owner, msg.sender, 5);
         }
         else {
             require(numEvent[_counter].amount == msg.value, "Enter the correct value");
@@ -81,6 +89,7 @@ contract EventManagement is ERC20,ReentrancyGuard {
                numEvent[_counter].eventOwner.transfer(msg.value - calc);
                idToEvent[msg.sender] = _counter;  
                registeredAddresses[_counter].push(msg.sender);
+               transferFrom(owner, msg.sender, 10);
         }
     }
     function getRegisteredAddresses(uint256 _eventID) external view returns (address[] memory) {
@@ -92,14 +101,9 @@ contract EventManagement is ERC20,ReentrancyGuard {
         _;
     }
     
-    function updateStatus(uint256 _eventID) external onlyEventCreator(_eventID) returns (uint256){
+    function updateStatus(uint256 _eventID) external onlyEventCreator(_eventID){
         Event storage currentEvent = numEvent[_eventID];
         uint256 endTime = currentEvent.startTime + currentEvent.duration;
-
-        return block.timestamp;
-        return currentEvent.startTime;
-        return endTime;
-        //return currentEvent.state;
 
         if (block.timestamp > endTime)
          {
