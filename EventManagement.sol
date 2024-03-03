@@ -11,6 +11,10 @@ contract EventManagement is ERC20,ReentrancyGuard {
         uint256 registrationTime;
     }
 
+    event started(string);
+    event ended(string);
+    event waiting(string);
+
     enum gender {male,female}
     enum eventType {unPaid,Paid}
     enum status {waiting,started,ended}
@@ -22,23 +26,24 @@ contract EventManagement is ERC20,ReentrancyGuard {
         eventType Type;
         status state;
         address payable eventOwner;
-        uint104 amount;
+        uint256 amount;
         uint256 eventID;
     }
 
     address payable owner;
-    uint256 deduction;
     uint256 counter;
-    uint256 [] eventNo;
+    uint256 [] public eventNo;
     mapping (address => Event) public addressEvent;
     mapping (uint256 => Event) public numEvent;
+    mapping (address => uint) public  idToEvent;
+    mapping(uint256 => address[]) public registeredAddresses;
 
     constructor() ERC20 ("Vigor","VIG") {
         owner = payable(msg.sender);
         _mint(owner,100000);
     }
 
-    function registerUser(string memory _name,gender _gender) external pure {
+    function registerUser(string memory _name,gender _gender) external {
         user memory newUser;
         newUser.name = string(abi.encodePacked(_name));
         newUser.Gender = _gender;
@@ -53,59 +58,63 @@ contract EventManagement is ERC20,ReentrancyGuard {
         newEvent.Type = _type;
         newEvent.state = _state;
         newEvent.amount = _amount;
-        newEvent.eventOwner = msg.sender;
+        newEvent.eventOwner = payable (msg.sender);
 
         counter++;
         newEvent.eventID = counter;
         eventNo.push(newEvent.eventID);
         addressEvent[msg.sender] = newEvent;
         numEvent[newEvent.eventID] = newEvent;
+        registeredAddresses[newEvent.eventID] = new address[](0);
     }
     
-    mapping (address => mapping(address => Event)) public eventAddress;
-    mapping (uint => mapping(address => Event)) public addressNum;
-
-    function selectEvent(uint256 _counter) external payable returns(string memory){
-    for (uint i = 0; i < eventNo.length; i++){
-        if (_counter == eventNo[i]){
-            require(numEvent[i].state == status.waiting || numEvent[i].state == status.started,"event ended");
-            addressNum[i][msg.sender] = numEvent[i];
-            if(numEvent[i].Type == eventType.unPaid){
-                addressNum[i][msg.sender] = numEvent[i]; 
-                eventAddress[msg.sender][numEvent[i].eventOwner] = numEvent[i];
-            }
-            else{
-                require(numEvent[i].amount == msg.value);
-                uint calc = msg.value * 2/10;
-                (owner).transfer(calc);
-                (numEvent[i].eventOwner).transfer(msg.value - calc);
-                addressNum[i][msg.sender] = numEvent[i]; 
-                eventAddress[msg.sender][numEvent[i].eventOwner] = numEvent[i];
-            }
-            return "event selected";
+    function selectEvent(uint256 _counter) external payable{
+        require(numEvent[_counter].state == status.waiting || numEvent[_counter].state == status.started, "Event ended");
+        if (numEvent[_counter].Type == eventType.unPaid){
+            idToEvent[msg.sender] = _counter;  
+            registeredAddresses[_counter].push(msg.sender);
+        }
+        else {
+            require(numEvent[_counter].amount == msg.value, "Enter the correct value");
+               uint calc = msg.value * 2/10;
+               owner.transfer(calc);
+               numEvent[_counter].eventOwner.transfer(msg.value - calc);
+               idToEvent[msg.sender] = _counter;  
+               registeredAddresses[_counter].push(msg.sender);
         }
     }
-    return "event not found";
-}
+    function getRegisteredAddresses(uint256 _eventID) external view returns (address[] memory) {
+        return registeredAddresses[_eventID];
+    }
 
-    modifier onlyEventCreator {
-        require(msg.sender == addressEvent[msg.sender].eventOwner,"you have not created an event");
+    modifier onlyEventCreator (uint256 _eventID) {
+        require(msg.sender == numEvent[_eventID].eventOwner,"you have not created an event");
         _;
     }
     
-    function updateStatus() external  onlyEventCreator{
+    function updateStatus(uint256 _eventID) external onlyEventCreator(_eventID) returns (uint256){
+        Event storage currentEvent = numEvent[_eventID];
+        uint256 endTime = currentEvent.startTime + currentEvent.duration;
 
-        if (addressEvent[msg.sender].duration > block.timestamp)
+        return block.timestamp;
+        return currentEvent.startTime;
+        return endTime;
+        //return currentEvent.state;
+
+        if (block.timestamp > endTime)
+         {
+            currentEvent.state = status.ended;
+            emit ended("event ended");
+        } 
+        else if (block.timestamp < currentEvent.startTime)
         {
-            addressEvent[msg.sender].state = status.ended;
-        }
-        else if (addressEvent[msg.sender].duration < block.timestamp)
+            currentEvent.state = status.waiting;
+            emit waiting("waiting for the event to start");
+        } 
+        else 
         {
-            addressEvent[msg.sender].state = status.waiting;
-        }
-        else
-        {
-            addressEvent[msg.sender].state = status.started;
+            currentEvent.state = status.started;
+            emit started("event started");
         }
     }
 }
