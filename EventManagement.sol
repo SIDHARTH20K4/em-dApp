@@ -2,9 +2,9 @@
 pragma solidity ^0.8.24;
 import "https://github.com/protofire/zeppelin-solidity/blob/master/contracts/ReentrancyGuard.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+//import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 
-contract EventManagement is ERC20,ReentrancyGuard {
+contract EventManagement is ERC20,ReentrancyGuard{
     struct user {
         string name;
         uint256 tokenCount;
