@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import "https://github.com/protofire/zeppelin-solidity/blob/master/contracts/ReentrancyGuard.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol";
-//import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+//import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+//import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract EventManagement is ERC20,ReentrancyGuard{
     struct user {
@@ -32,7 +33,7 @@ contract EventManagement is ERC20,ReentrancyGuard{
         uint tokenID;
     }
 
-    uint tokenID;
+    uint private tokenID;
     address payable owner;
     uint256 counter;
     uint256 [] public eventNo;
@@ -42,7 +43,7 @@ contract EventManagement is ERC20,ReentrancyGuard{
     mapping(uint256 => address[]) public registeredAddresses;
     user[] public Users;
 
-    constructor() ERC20 ("Vigor","VIG") {
+    constructor()  ERC20("Migor","Mig") {
         owner = payable(msg.sender);
         _mint(owner,100000);
     }
