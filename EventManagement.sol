@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-//import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-//import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./NFTcontract.sol";
 
 contract EventManagement is ERC20,ReentrancyGuard{
+    NFTContract public nftContract;
     struct user {
         string name;
         uint256 tokenCount;
@@ -31,6 +32,7 @@ contract EventManagement is ERC20,ReentrancyGuard{
         uint256 amount;
         uint256 eventID;
         uint tokenID;
+        string img;
     }
 
     uint private tokenID;
@@ -46,6 +48,7 @@ contract EventManagement is ERC20,ReentrancyGuard{
     constructor()  ERC20("Migor","Mig") {
         owner = payable(msg.sender);
         _mint(owner,100000);
+        nftContract = new NFTContract(); // Creating a new instance of your ERC721 contract
     }
 
     function registerUser(string memory _name,gender _gender) external{
@@ -56,7 +59,16 @@ contract EventManagement is ERC20,ReentrancyGuard{
     }
     
 
-    function createEvent (string memory _location, uint256 _startTime, uint256 _duration,eventType _type,status _state,uint104 _amount) external {
+    function createEvent (
+        string memory _location, 
+        uint256 _startTime, 
+        uint256 _duration,eventType _type,
+        status _state,
+        uint104 _amount,
+        string calldata _img
+        ) 
+        external 
+        {
         Event memory newEvent;
         newEvent.location = _location;
         newEvent.startTime = _startTime;
@@ -65,10 +77,9 @@ contract EventManagement is ERC20,ReentrancyGuard{
         newEvent.state = _state;
         newEvent.amount = _amount;
         newEvent.eventOwner = payable (msg.sender);
+        newEvent.img = _img;
 
         counter++;
-        tokenID++;
-        newEvent.tokenID = tokenID;
         newEvent.eventID = counter;
         eventNo.push(newEvent.eventID);
         addressEvent[msg.sender] = newEvent;
@@ -76,12 +87,14 @@ contract EventManagement is ERC20,ReentrancyGuard{
         registeredAddresses[newEvent.eventID] = new address[](0);
     }
     
-    function selectEvent(uint256 _counter) external payable{
+    function selectEvent(uint256 _counter) external payable nonReentrant{
         require(numEvent[_counter].state == status.waiting || numEvent[_counter].state == status.started, "Event ended");
         if (numEvent[_counter].Type == eventType.unPaid){
             idToEvent[msg.sender] = _counter;  
             registeredAddresses[_counter].push(msg.sender);
             transferFrom(owner, msg.sender, 5);
+            tokenID++;
+            nftContract.mint(msg.sender,tokenID,numEvent[_counter].img);
         }
         else {
             require(numEvent[_counter].amount == msg.value, "Enter the correct value");
@@ -91,6 +104,8 @@ contract EventManagement is ERC20,ReentrancyGuard{
                idToEvent[msg.sender] = _counter;  
                registeredAddresses[_counter].push(msg.sender);
                transferFrom(owner, msg.sender, 10);
+               tokenID++;
+               nftContract.mint(msg.sender,tokenID,numEvent[_counter].img);
         }
     }
     function getRegisteredAddresses(uint256 _eventID) external view returns (address[] memory) {
@@ -101,25 +116,28 @@ contract EventManagement is ERC20,ReentrancyGuard{
         require(msg.sender == numEvent[_eventID].eventOwner,"you have not created an event");
         _;
     }
-    
-    function updateStatus(uint256 _eventID) external onlyEventCreator(_eventID){
-        Event storage currentEvent = numEvent[_eventID];
-        uint256 endTime = currentEvent.startTime + currentEvent.duration;
 
-        if (block.timestamp > endTime)
-         {
-            currentEvent.state = status.ended;
-            emit ended("event ended");
-        } 
-        else if (block.timestamp < currentEvent.startTime)
-        {
-            currentEvent.state = status.waiting;
-            emit waiting("waiting for the event to start");
-        } 
-        else 
-        {
-            currentEvent.state = status.started;
-            emit started("event started");
-        }
+    function startEvent(uint256 _eventID) external  onlyEventCreator(_eventID){
+        require(block.timestamp > numEvent[_eventID].startTime);
+        numEvent[_eventID].state = status.started;
+        emit started("event started");
     }
+
+    function endEvent(uint256 _eventID) external  onlyEventCreator(_eventID){
+        require(block.timestamp > numEvent[_eventID].startTime + numEvent[_eventID].duration);
+        numEvent[_eventID].state = status.ended;
+        emit ended("event ended");
+    }
+
+    // function updateStatus(uint256 _eventID) external onlyEventCreator(_eventID){
+    //     if(block.timestamp > numEvent[_eventID].startTime){
+    //         startEvent(_eventID);
+    //     }
+    //     else if (block.timestamp < numEvent[_eventID].startTime){
+    //         waitEvent(_eventID);
+    //     }
+    //     else {
+    //         endEvent(_eventID);
+    //     }
+    // }
 }
